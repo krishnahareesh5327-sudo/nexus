@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI</title>
+    <meta name="description" content="Nexus AI: Transform your project ideas into professional Software Requirements Documents.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+        /* Default Light Theme Variables */
+        :root {
+            --bg-body: hsl(210, 20%, 98%);
+            --bg-container: #ffffff;
+            --bg-user-message: #e2f0ff;
+            --bg-agent-message: #f1f0f0;
+            --text-user-message: #1a202c;
+            --text-agent-message: #1a202c;
+            --text-secondary: #718096;
+            --border-color: #e2e8f0;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --icon-color: #6366f1;
+            --input-bg: #f7f7f7;
+            --input-border: #e5e7eb;
+        }
+
+        /* Dark Theme Variables */
+        [data-theme="dark"] {
+            --bg-body: hsl(220, 20%, 10%);
+            --bg-container: #1a202c;
+            --bg-user-message: #4a5568;
+            --bg-agent-message: #2d3748;
+            --text-user-message: #e2e8f0;
+            --text-agent-message: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --border-color: #4a5568;
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --icon-color: #818cf8;
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-agent-message);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container-fluid {
+            background-color: var(--bg-container);
+        }
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-secondary) transparent;
+        }
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: var(--text-secondary);
+            border-radius: 4px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+        .message-bubble.user {
+            background-color: var(--bg-user-message);
+            color: var(--text-user-message);
+            align-self: flex-end;
+        }
+        .message-bubble.agent {
+            background-color: var(--bg-agent-message);
+            color: var(--text-agent-message);
+            align-self: flex-start;
+        }
+        .loading-dots span {
+            animation: bounce 1s infinite;
+        }
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+        .icon {
+            filter: var(--icon-filter);
+        }
+        .srs-document-container h1, .srs-document-container h2, .srs-document-container h3, .srs-document-container h4 {
+            font-weight: bold;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .srs-document-container h1 { font-size: 1.5em; }
+        .srs-document-container h2 { font-size: 1.25em; }
+        .srs-document-container h3 { font-size: 1.1em; }
+        .srs-document-container ul {
+            list-style-type: disc;
+            margin-left: 2rem;
+        }
+        .srs-document-container ol {
+            list-style-type: decimal;
+            margin-left: 2rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
+    <div class="flex flex-col h-screen max-w-2xl mx-auto p-4">
+
+        <!-- Header with Bot Avatar and Name -->
+        <div class="flex items-center gap-4 mb-6 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div class="relative w-12 h-12">
+                <div class="absolute inset-0 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                    AI
+                </div>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold">Nexus AI</h2>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div id="chat-container" class="flex-1 flex flex-col gap-4 overflow-y-auto pr-2">
+            <div class="message-bubble agent p-4 rounded-3xl max-w-[80%] shadow-md rounded-bl-none">
+                Hello! I'm Nexus AI, your project assistant. How can I help you today?
+            </div>
+            <!-- Dynamic chat messages will be appended here -->
+        </div>
+
+        <!-- Input Area and Quick Action Buttons -->
+        <div class="flex flex-col mt-4">
+            <!-- User ID and History buttons -->
+            <div class="flex justify-end items-center gap-2 mb-2">
+                <button id="showHistoryButton" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200" title="Show History">
+                    <i class="fa-solid fa-clock-rotate-left fa-lg"></i>
+                </button>
+                <button id="userProfileButton" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200" title="User Profile">
+                    <i class="fa-solid fa-user fa-lg"></i>
+                </button>
+                <button id="themeToggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200" title="Toggle theme">
+                    <i id="themeIcon" class="fa-solid fa-sun fa-lg"></i>
+                </button>
+            </div>
+
+            <!-- Download Button (hidden by default) -->
+            <div class="flex justify-center mb-4">
+                <button id="downloadBtn" class="bg-green-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-green-700 transition-all active:scale-95 hidden">
+                    <i class="fa-solid fa-download mr-2"></i> Download SRS
+                </button>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+                <button class="quick-action-button text-sm px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                    Summarize
+                </button>
+                <button class="quick-action-button text-sm px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                    Create Next Steps
+                </button>
+                <button class="quick-action-button text-sm px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                    Draft an Email
+                </button>
+                <button class="quick-action-button text-sm px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                    Generate Code
+                </button>
+            </div>
+
+            <div class="flex w-full items-center p-2 rounded-full bg-white dark:bg-gray-800 shadow-xl border border-gray-300 dark:border-gray-700">
+                <input type="text" id="userInput" placeholder="Ask Nexus AI..."
+                    class="flex-1 px-4 py-2 bg-transparent outline-none focus:ring-0 text-gray-900 dark:text-gray-100 placeholder-gray-400">
+                <button id="sendButton"
+                    class="p-2 ml-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <i class="fa-solid fa-paper-plane fa-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 dark:bg-opacity-80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[80vh] flex flex-col">
+            <h3 class="text-2xl font-bold mb-4">Chat History</h3>
+            <div id="historyContent" class="flex-1 overflow-y-auto pr-2">
+                <!-- History items will be injected here -->
+            </div>
+            <button id="closeHistoryButton" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="profileModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 dark:bg-opacity-80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
+            <button id="closeProfileButton" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="w-24 h-24 rounded-full overflow-hidden mb-4">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Shri_Krishna_Painting.jpg" alt="Krishna" class="w-full h-full object-cover">
+            </div>
+            <h3 class="text-2xl font-bold mb-2">krishna</h3>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mb-1">krishna5327@gmail.com</p>
+            <p class="text-lg text-gray-600 dark:text-gray-400">9876543210</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Set log level to debug for detailed logging
+        setLogLevel('debug');
+
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const historyModal = document.getElementById('historyModal');
+        const showHistoryButton = document.getElementById('showHistoryButton');
+        const closeHistoryButton = document.getElementById('closeHistoryButton');
+        const historyContent = document.getElementById('historyContent');
+        const userProfileButton = document.getElementById('userProfileButton');
+        const profileModal = document.getElementById('profileModal');
+        const closeProfileButton = document.getElementById('closeProfileButton');
+        const quickActionButtons = document.querySelectorAll('.quick-action-button');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let isWaitingForResponse = false;
+        let db, auth, userId;
+        let isAuthReady = false;
+        let sessionId = new Date().toISOString();
+        let unsubscribeFromSession = null;
+        let conversationHistory = []; // Local history for context
+
+        // Check if dark mode is preferred and set it
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+        }
+
+        // Initialize Firebase and Auth
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        const initializeFirebase = async () => {
+            if (firebaseConfig) {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+
+                        // Start the listener for the initial session
+                        startSessionListener(sessionId);
+
+                        // Fetch and render full history on button click
+                        showHistoryButton.onclick = async () => {
+                            historyModal.style.display = 'flex';
+                            const sessionsRef = collection(db, `/artifacts/${appId}/public/data/chatSessions`);
+                            const q = query(sessionsRef, where("userId", "==", userId));
+                            const snapshot = await getDocs(q);
+                            const sessions = [];
+                            snapshot.forEach(doc => {
+                                sessions.push(doc.data());
+                            });
+                            renderHistory(sessions);
+                        };
+
+                    } else {
+                        userId = 'anonymous';
+                        isAuthReady = true;
+                    }
+                });
+
+                // Sign in the user
+                if (initialAuthToken) {
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } catch (error) {
+                        console.error("Error signing in with custom token: ", error);
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } else {
+                console.error("Firebase config is not available. Firestore will not be used.");
+                isAuthReady = true;
+                historyContent.innerHTML = `<p class="text-gray-500 dark:text-gray-400">Firebase is not configured. Chat history will not be saved.</p>`;
+            }
+        };
+
+        // UI Functions
+        const addMessage = (text, sender, isTyping = false, showDownload = false) => {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message-bubble', sender, 'p-4', 'rounded-3xl', 'max-w-[80%]','shadow-md', 'break-words');
+            if (sender === 'agent') {
+                messageElement.classList.add('rounded-bl-none');
+            } else {
+                messageElement.classList.add('rounded-br-none');
+            }
+
+            if (isTyping) {
+                messageElement.innerHTML = `
+                    <div class="loading-dots flex space-x-1">
+                        <span class="w-2 h-2 bg-gray-500 dark:bg-gray-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-gray-500 dark:bg-gray-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-gray-500 dark:bg-gray-400 rounded-full"></span>
+                    </div>
+                `;
+                messageElement.id = 'typing-indicator';
+            } else {
+                // Apply Markdown formatting
+                let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                formattedText = formattedText.replace(/###\s(.*?)$/gm, '<h3>$1</h3>');
+                formattedText = formattedText.replace(/##\s(.*?)$/gm, '<h2>$1</h2>');
+                formattedText = formattedText.replace(/#\s(.*?)$/gm, '<h1>$1</h1>');
+                formattedText = formattedText.replace(/^- (.*)/gm, '<li>$1</li>');
+                formattedText = formattedText.replace(/1\. (.*)/gm, '<li>$1</li>');
+                
+                // Wrap in ul/ol if list items are present
+                if (formattedText.includes('<li>')) {
+                    if (text.match(/^\s*1\./m)) {
+                        formattedText = `<ol>${formattedText}</ol>`;
+                    } else {
+                        formattedText = `<ul>${formattedText}</ul>`;
+                    }
+                }
+
+                messageElement.innerHTML = formattedText;
+                
+                // If it's the final SRS document, show the download button
+                if (showDownload) {
+                    downloadBtn.classList.remove('hidden');
+                }
+            }
+
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageElement;
+        };
+
+        const removeTypingIndicator = () => {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        };
+        
+        const getConversationText = () => {
+            let fullText = '';
+            const messages = document.querySelectorAll('.message-bubble');
+            messages.forEach(msg => {
+                const sender = msg.classList.contains('user') ? 'User' : 'AI';
+                fullText += `\n\n**${sender}:**\n${msg.textContent.trim()}`;
+            });
+            return fullText;
+        };
+
+        const downloadChat = () => {
+            const chatContent = getConversationText();
+            const blob = new Blob([chatContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `SRS-Document-${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        const renderMessages = (messages) => {
+            chatContainer.innerHTML = '';
+            messages.forEach(msg => {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message-bubble', msg.sender, 'p-4', 'rounded-3xl', 'max-w-[80%]', 'shadow-md', 'break-words');
+                if (msg.sender === 'agent') {
+                    messageElement.classList.add('rounded-bl-none');
+                } else {
+                    messageElement.classList.add('rounded-br-none');
+                }
+                messageElement.textContent = msg.text;
+                chatContainer.appendChild(messageElement);
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+        
+        const renderHistory = (sessions) => {
+            historyContent.innerHTML = '';
+            if (sessions.length === 0) {
+                historyContent.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-center">No chat history found.</p>`;
+                return;
+            }
+            sessions.sort((a, b) => b.timestamp - a.timestamp);
+            sessions.forEach(session => {
+                const sessionDiv = document.createElement('div');
+                sessionDiv.classList.add('p-4', 'rounded-xl', 'bg-gray-100', 'dark:bg-gray-700', 'mb-4', 'shadow-sm', 'cursor-pointer', 'hover:bg-gray-200', 'dark:hover:bg-gray-600', 'transition-colors');
+                sessionDiv.innerHTML = `
+                    <h4 class="font-semibold text-lg">${session.title || 'Untitled Session'}</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">${new Date(session.timestamp).toLocaleString()}</p>
+                `;
+                sessionDiv.onclick = () => {
+                    historyModal.style.display = 'none';
+                    sessionId = session.id;
+                    renderMessages(session.history);
+                    startSessionListener(sessionId); // Attach a new listener to the selected session
+                };
+                historyContent.appendChild(sessionDiv);
+            });
+        };
+
+        const saveChatSession = async (message, sender) => {
+            if (!isAuthReady || !db) return;
+
+            const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/chatSessions/${sessionId}`);
+            const sessionDoc = await getDoc(sessionDocRef);
+
+            const newMessage = { text: message, sender: sender, timestamp: Date.now() };
+
+            if (!sessionDoc.exists()) {
+                await setDoc(sessionDocRef, {
+                    id: sessionId,
+                    userId: userId,
+                    title: message.substring(0, 30),
+                    timestamp: Date.now(),
+                    history: [newMessage]
+                });
+            } else {
+                const currentHistory = sessionDoc.data().history;
+                await updateDoc(sessionDocRef, {
+                    history: [...currentHistory, newMessage]
+                });
+            }
+        };
+
+        // This function sets up the real-time listener for the current session.
+        const startSessionListener = (newSessionId) => {
+            if (!db || !isAuthReady) return;
+            // Unsubscribe from the previous listener if it exists
+            if (unsubscribeFromSession) {
+                unsubscribeFromSession();
+            }
+            const sessionDocRef = doc(db, `/artifacts/${appId}/public/data/chatSessions/${newSessionId}`);
+            unsubscribeFromSession = onSnapshot(sessionDocRef, (doc) => {
+                if (doc.exists()) {
+                    const chatData = doc.data().history;
+                    renderMessages(chatData);
+                }
+            }, (error) => {
+                console.error("Error listening to Firestore: ", error);
+            });
+        };
+
+        // --- Multi-Agent State Machine ---
+        let currentState = 'START';
+
+        // --- Core Controller (Collector Agent) ---
+        async function handleUserInput(userText) {
+            const trimmedText = userText.trim();
+            if (isWaitingForResponse || !trimmedText) return;
+
+            downloadBtn.classList.add('hidden'); // Hide download button on new input
+            addMessage(trimmedText, 'user');
+            saveChatSession(trimmedText, 'user');
+            conversationHistory.push({ role: "user", parts: [{ text: trimmedText }] });
+            userInput.value = '';
+            
+            isWaitingForResponse = true;
+            addMessage('', 'agent', true);
+
+            if (currentState === 'START') {
+                currentState = 'CLARIFYING';
+            }
+
+            await processNextStep();
+        }
+
+        async function processNextStep() {
+            switch (currentState) {
+                case 'CLARIFYING':
+                    await runClarifierAgent();
+                    break;
+                case 'ANALYZING':
+                    await runAnalyzerAgent();
+                    break;
+                case 'FEASIBILITY_CHECK':
+                    await runFeasibilityAgent();
+                    break;
+                case 'SRS_GENERATION':
+                    await runSrsGeneratorAgent();
+                    break;
+            }
+        }
+
+        // --- Agent Logic ---
+
+        // Agent 1: Clarifier
+        async function runClarifierAgent() {
+            const systemPrompt = `You are a Clarifier AI. Your role is to guide the user conversationally to flesh out their idea.
+- Analyze the entire conversation so far.
+- Ask **only one** specific, relevant question at a time to get more details. Do not ask multiple questions in a single response.
+- Once you have gathered sufficient information about the core features, target audience, and key objectives, respond with the single phrase: "CLARIFICATION_COMPLETE".
+- Your goal is a back-and-forth dialogue, not an interrogation. Keep your questions concise.`;
+            
+            const response = await makeApiCall(systemPrompt);
+            removeTypingIndicator();
+            if (!response) {
+                isWaitingForResponse = false;
+                return;
+            }
+
+            if (response.trim().toUpperCase() === "CLARIFICATION_COMPLETE") {
+                currentState = 'ANALYZING';
+                await processNextStep();
+            } else {
+                addMessage(response, 'agent');
+                isWaitingForResponse = false;
+            }
+        }
+
+        // Agent 2: Analyzer
+        async function runAnalyzerAgent() {
+            const systemPrompt = `You are an Analyzer AI. Based on the entire conversation, extract the key requirements and objectives. Present them as a structured, bulleted list.`;
+            const response = await makeApiCall(systemPrompt);
+            removeTypingIndicator();
+            if (!response) {
+                isWaitingForResponse = false;
+                return;
+            }
+
+            addMessage(response, 'agent');
+            currentState = 'FEASIBILITY_CHECK';
+            await processNextStep();
+        }
+        
+        // Agent 3: Feasibility Agent
+        async function runFeasibilityAgent() {
+            const systemPrompt = `You are a Feasibility Agent. Review the extracted requirements. Identify potential complexities, risks, or constraints. Use "✅ Achievable:" for straightforward items and "⚠️ Consideration:" for items that require more thought (e.g., high cost, technical complexity, ambiguity). Provide brief justifications.`;
+            const response = await makeApiCall(systemPrompt);
+            removeTypingIndicator();
+            if (!response) {
+                isWaitingForResponse = false;
+                return;
+            }
+
+            addMessage(response, 'agent');
+            currentState = 'SRS_GENERATION';
+            await processNextStep();
+        }
+        
+        // Agent 4: SRS Generator Agent
+        async function runSrsGeneratorAgent() {
+            const systemPrompt = `You are a professional Technical Writer AI. Your task is to generate a Software Requirements Specification (SRS) document based on the entire conversation. The client's goal is to eliminate misunderstandings with developers. The output must be in a clean, professional format.
+
+Use the following structure:
+
+# Software Requirements Specification (SRS)
+
+## 1.0 Introduction
+    - **1.1 Purpose:** (Briefly state the main goal of the project.)
+    - **1.2 Scope:** (Describe what the system will and will not do.)
+
+## 2.0 Overall Description
+    - **2.1 User Needs:** (List the key needs the user expressed.)
+    - **2.2 Assumptions:** (Mention any assumptions made during clarification.)
+
+## 3.0 System Requirements
+    - **3.1 Functional Requirements:**
+        - FR-1: (Requirement 1)
+        - FR-2: (Requirement 2)
+        - ... (List all functional requirements from the analysis)
+
+## 4.0 Technical Approach
+    - **4.1 Core Technologies:** This project can be developed by leveraging advanced **Natural Language Processing (NLP)** to understand the user's initial request and a **Large Language Model (LLM)** to process, analyze, and generate these structured requirements. This ensures the developer has a clear, unambiguous starting point.`;
+
+            const response = await makeApiCall(systemPrompt);
+            removeTypingIndicator();
+            if (!response) {
+                isWaitingForResponse = false;
+                return;
+            }
+            
+            addMessage(response, 'agent', false, true); // showDownload is true
+            currentState = 'START';
+            conversationHistory = [];
+            isWaitingForResponse = false;
+        }
+
+        // --- Utility Functions ---
+        async function makeApiCall(systemPromptText) {
+            const payload = {
+                contents: conversationHistory,
+                systemInstruction: { parts: [{ text: systemPromptText }] },
+            };
+            const apiKey = "AIzaSyBNgDedaBM9eUvwZaaaOvogvRfvAI9-kh0"; // REPLACE WITH YOUR GEMINI API KEY
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const fetchResponse = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!fetchResponse.ok) {
+                    throw new Error(`API error: ${fetchResponse.statusText}`);
+                }
+                
+                const response = await fetchResponse.json();
+                const text = response?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (text) {
+                    conversationHistory.push({ role: "model", parts: [{ text: text }] });
+                }
+                return text;
+
+            } catch (error) {
+                console.error("API Call Failed:", error);
+                addMessage("An error occurred. Please check the console for details.", 'agent');
+                return null;
+            }
+        }
+        
+        // Event Listeners
+        sendButton.addEventListener('click', () => handleUserInput(userInput.value));
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleUserInput(userInput.value);
+            }
+        });
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        });
+
+        closeHistoryButton.addEventListener('click', () => {
+            historyModal.style.display = 'none';
+        });
+        
+        closeProfileButton.addEventListener('click', () => {
+            profileModal.style.display = 'none';
+        });
+
+        downloadBtn.addEventListener('click', downloadChat);
+        
+        quickActionButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const action = e.target.textContent.trim();
+                handleUserInput(action);
+            });
+        });
+
+        // Initialize on window load
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
