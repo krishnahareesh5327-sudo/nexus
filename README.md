@@ -7,6 +7,8 @@ Nexus AI is a single-page, multi-agent chatbot designed to make requirement engi
 Everything — UI, styling, logic, and database integration — is combined into a single HTML file for simplicity.
 
 
+![image alt](https://github.com/krishnahareesh5327-sudo/nexus/blob/dc869deeb85e2f590ccc0303d48d490d3f221088/image.jpg)
+
 ✨ Features
 
 🗨️ Chatbot Interface – Talk to Nexus AI like you would to a requirements analyst.
